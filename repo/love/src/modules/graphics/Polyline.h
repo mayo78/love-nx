@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2022 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -73,7 +73,7 @@ protected:
 
 	virtual void calc_overdraw_vertex_count(bool is_looping);
 	virtual void render_overdraw(const std::vector<Vector2> &normals, float pixel_size, bool is_looping);
-	virtual void fill_color_array(Color32 constant_color, Color32 *colors, int count);
+	virtual void fill_color_array(Color constant_color, Color *colors);
 
 	/** Calculate line boundary points.
 	 *
@@ -131,12 +131,12 @@ public:
 
 protected:
 
-	void calc_overdraw_vertex_count(bool is_looping) override;
-	void render_overdraw(const std::vector<Vector2> &normals, float pixel_size, bool is_looping) override;
-	void fill_color_array(Color32 constant_color, Color32 *colors, int count) override;
-	void renderEdge(std::vector<Vector2> &anchors, std::vector<Vector2> &normals,
-	                Vector2 &s, float &len_s, Vector2 &ns, const Vector2 &q,
-	                const Vector2 &r, float hw) override;
+	virtual void calc_overdraw_vertex_count(bool is_looping);
+	virtual void render_overdraw(const std::vector<Vector2> &normals, float pixel_size, bool is_looping);
+	virtual void fill_color_array(Color constant_color, Color *colors);
+	virtual void renderEdge(std::vector<Vector2> &anchors, std::vector<Vector2> &normals,
+	                        Vector2 &s, float &len_s, Vector2 &ns,
+	                        const Vector2 &q, const Vector2 &r, float hw);
 
 }; // NoneJoinPolyline
 
@@ -156,9 +156,9 @@ public:
 
 protected:
 
-	void renderEdge(std::vector<Vector2> &anchors, std::vector<Vector2> &normals,
-	                Vector2 &s, float &len_s, Vector2 &ns, const Vector2 &q,
-	                const Vector2 &r, float hw) override;
+	virtual void renderEdge(std::vector<Vector2> &anchors, std::vector<Vector2> &normals,
+	                        Vector2 &s, float &len_s, Vector2 &ns,
+	                        const Vector2 &q, const Vector2 &r, float hw);
 
 }; // MiterJoinPolyline
 
@@ -178,9 +178,9 @@ public:
 
 protected:
 
-	void renderEdge(std::vector<Vector2> &anchors, std::vector<Vector2> &normals,
-	                Vector2 &s, float &len_s, Vector2 &ns, const Vector2 &q,
-	                const Vector2 &r, float hw) override;
+	virtual void renderEdge(std::vector<Vector2> &anchors, std::vector<Vector2> &normals,
+	                        Vector2 &s, float &len_s, Vector2 &ns,
+	                        const Vector2 &q, const Vector2 &r, float hw);
 
 }; // BevelJoinPolyline
 

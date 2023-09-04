@@ -43,7 +43,7 @@ OggDemuxer::~OggDemuxer()
 	ogg_sync_clear(&sync);
 }
 
-bool OggDemuxer::readPage(bool erroreof)
+void OggDemuxer::readPage()
 {
 	char *syncBuffer = nullptr;
 	while (ogg_sync_pageout(&sync, &page) != 1)
@@ -53,13 +53,8 @@ bool OggDemuxer::readPage(bool erroreof)
 
 		syncBuffer = ogg_sync_buffer(&sync, 8192);
 		size_t read = file->read(syncBuffer, 8192);
-		if (read == 0 && erroreof)
-			return false;
-
 		ogg_sync_wrote(&sync, read);
 	}
-
-	return true;
 }
 
 bool OggDemuxer::readPacket(ogg_packet &packet, bool mustSucceed)
@@ -123,25 +118,22 @@ OggDemuxer::StreamType OggDemuxer::findStream()
 	if (streamInited)
 	{
 		eos = false;
-		streamInited = false;
 		file->seek(0);
 		ogg_stream_clear(&stream);
 		ogg_sync_reset(&sync);
 	}
 
+	streamInited = true;
 	while (true)
 	{
-		if (!readPage(true))
-			return TYPE_UNKNOWN;
-
 		// If this page isn't at the start of a stream, we've seen all streams
+		readPage();
 		if (!ogg_page_bos(&page))
 			break;
 
 		videoSerial = ogg_page_serialno(&page);
 		ogg_stream_init(&stream, videoSerial);
 		ogg_stream_pagein(&stream, &page);
-		streamInited = true;
 
 		StreamType type = determineType();
 		switch(type)
@@ -153,15 +145,10 @@ OggDemuxer::StreamType OggDemuxer::findStream()
 		}
 
 		ogg_stream_clear(&stream);
-		streamInited = false;
 	}
 
-	if (streamInited)
-	{
-		streamInited = false;
-		ogg_stream_clear(&stream);
-	}
-
+	streamInited = false;
+	ogg_stream_clear(&stream);
 	ogg_sync_reset(&sync);
 
 	return TYPE_UNKNOWN;

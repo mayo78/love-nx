@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2022 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -165,6 +165,7 @@
 #	define LOVE_ENABLE_ENET
 #	define LOVE_ENABLE_LUASOCKET
 #	define LOVE_ENABLE_LUA53
+#	define LOVE_ENABLE_NXUTIL
 #endif
 
 // Check we have a sane configuration

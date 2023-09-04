@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2020 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -141,9 +141,7 @@ const luaL_Reg w_GlyphData_functions[] =
 
 extern "C" int luaopen_glyphdata(lua_State *L)
 {
-	int ret = luax_register_type(L, &GlyphData::type, data::w_Data_functions, w_GlyphData_functions, nullptr);
-	love::data::luax_rundatawrapper(L, GlyphData::type);
-	return ret;
+	return luax_register_type(L, &GlyphData::type, data::w_Data_functions, w_GlyphData_functions, nullptr);
 }
 
 } // font

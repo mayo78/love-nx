@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2022 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -24,6 +24,13 @@
 // LOVE
 #include "common/config.h"
 
+#include <string.h>
+#include <stdio.h>
+
+#include <switch.h>
+
+//#include <enet/enet.h>
+
 // Forward declare lua_State.
 struct lua_State;
 
@@ -36,9 +43,6 @@ LOVE_EXPORT const char *love_version();
 LOVE_EXPORT const char *love_codename();
 LOVE_EXPORT int luaopen_love(lua_State *L);
 LOVE_EXPORT int luaopen_love_nogame(lua_State *L);
-LOVE_EXPORT int luaopen_love_jitsetup(lua_State *L);
-LOVE_EXPORT int luaopen_love_arg(lua_State *L);
-LOVE_EXPORT int luaopen_love_callbacks(lua_State *L);
 LOVE_EXPORT int luaopen_love_boot(lua_State *L);
 
 #ifdef LOVE_LEGENDARY_CONSOLE_IO_HACK

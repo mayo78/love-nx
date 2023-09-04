@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2020 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -116,9 +116,7 @@ static const luaL_Reg w_CompressedImageData_functions[] =
 
 extern "C" int luaopen_compressedimagedata(lua_State *L)
 {
-	int ret = luax_register_type(L, &CompressedImageData::type, data::w_Data_functions, w_CompressedImageData_functions, nullptr);
-	love::data::luax_rundatawrapper(L, CompressedImageData::type);
-	return ret;
+	return luax_register_type(L, &CompressedImageData::type, data::w_Data_functions, w_CompressedImageData_functions, nullptr);
 }
 
 } // image

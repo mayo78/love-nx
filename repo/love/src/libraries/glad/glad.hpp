@@ -62,6 +62,14 @@
 
 #include <stddef.h>
 
+namespace glad {
+
+bool gladLoadGL(void);
+
+typedef void* (* LOADER)(const char *name);
+bool gladLoadGLLoader(LOADER);
+
+
 #ifndef GLEXT_64_TYPES_DEFINED
 /* This code block is duplicated in glxext.h, so must be protected */
 #define GLEXT_64_TYPES_DEFINED
@@ -99,14 +107,6 @@ typedef unsigned __int64 uint64_t;
 #include <inttypes.h>
 #endif
 #endif
-
-namespace glad {
-
-bool gladLoadGL(void);
-
-typedef void* (* LOADER)(const char *name);
-bool gladLoadGLLoader(LOADER);
-
 typedef unsigned int GLenum;
 typedef unsigned char GLboolean;
 typedef unsigned int GLbitfield;

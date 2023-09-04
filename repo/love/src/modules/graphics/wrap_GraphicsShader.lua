@@ -3,7 +3,7 @@ R"luastring"--(
 -- There is a matching delimiter at the bottom of the file.
 
 --[[
-Copyright (c) 2006-2020 LOVE Development Team
+Copyright (c) 2006-2019 LOVE Development Team
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -54,11 +54,7 @@ GLSL.SYNTAX = [[
 	#define DepthCubeImage samplerCubeShadow
 #endif
 #define extern uniform
-#if defined(GL_EXT_texture_array) && (!defined(GL_ES) || __VERSION__ > 100 || defined(GL_OES_gpu_shader5))
-// Only used when !GLSLES1 to work around Ouya driver bug. But we still want it
-// enabled for glslang validation when glsl 1-on-3 is used, so also enable it if
-// OES_gpu_shader5 exists.
-#define LOVE_EXT_TEXTURE_ARRAY_ENABLED
+#ifdef GL_EXT_texture_array
 #extension GL_EXT_texture_array : enable
 #endif
 #ifdef GL_OES_texture_3D
@@ -89,13 +85,13 @@ uniform LOVE_HIGHP_OR_MEDIUMP vec4 love_ScreenSize;
 
 GLSL.FUNCTIONS = [[
 #ifdef GL_ES
-	#if __VERSION__ >= 300 || defined(LOVE_EXT_TEXTURE_ARRAY_ENABLED)
+	#if __VERSION__ >= 300 || defined(GL_EXT_texture_array)
 		precision lowp sampler2DArray;
 	#endif
 	#if __VERSION__ >= 300 || defined(GL_OES_texture_3D)
 		precision lowp sampler3D;
 	#endif
-	#if __VERSION__ >= 300 && !defined(LOVE_GLSL1_ON_GLSL3)
+	#if __VERSION__ >= 300
 		precision lowp sampler2DShadow;
 		precision lowp samplerCubeShadow;
 		precision lowp sampler2DArrayShadow;
@@ -125,7 +121,7 @@ GLSL.FUNCTIONS = [[
 	#if __VERSION__ > 100 || defined(GL_OES_texture_3D)
 		vec4 Texel(sampler3D s, vec3 c) { return love_texture3D(s, c); }
 	#endif
-	#if __VERSION__ >= 130 || defined(LOVE_EXT_TEXTURE_ARRAY_ENABLED)
+	#if __VERSION__ >= 130 || defined(GL_EXT_texture_array)
 		vec4 Texel(sampler2DArray s, vec3 c) { return love_texture2DArray(s, c); }
 	#endif
 	#ifdef PIXEL
@@ -134,7 +130,7 @@ GLSL.FUNCTIONS = [[
 		#if __VERSION__ > 100 || defined(GL_OES_texture_3D)
 			vec4 Texel(sampler3D s, vec3 c, float b) { return love_texture3D(s, c, b); }
 		#endif
-		#if __VERSION__ >= 130 || defined(LOVE_EXT_TEXTURE_ARRAY_ENABLED)
+		#if __VERSION__ >= 130 || defined(GL_EXT_texture_array)
 			vec4 Texel(sampler2DArray s, vec3 c, float b) { return love_texture2DArray(s, c, b); }
 		#endif
 	#endif

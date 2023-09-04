@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2022 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -106,25 +106,14 @@ bool DroppedFile::isOpen() const
 
 int64 DroppedFile::getSize()
 {
-	int fd = file ? fileno(file) : -1;
-
 #ifdef LOVE_WINDOWS
-	
-	struct _stat64 buf;
 
-	if (fd != -1)
-	{
-		if (_fstat64(fd, &buf) != 0)
-			return -1;
-	}
-	else
-	{
-		// make sure non-ASCII filenames work.
-		std::wstring wfilename = to_widestr(filename);
+	// make sure non-ASCII filenames work.
+	std::wstring wfilename = to_widestr(filename);
 
-		if (_wstat64(wfilename.c_str(), &buf) != 0)
-			return -1;
-	}
+	struct _stat buf;
+	if (_wstat(wfilename.c_str(), &buf) != 0)
+		return -1;
 
 	return (int64) buf.st_size;
 
@@ -132,13 +121,7 @@ int64 DroppedFile::getSize()
 
 	// Assume POSIX support...
 	struct stat buf;
-
-	if (fd != -1)
-	{
-		if (fstat(fd, &buf) != 0)
-			return -1;
-	}
-	else if (stat(filename.c_str(), &buf) != 0)
+	if (stat(filename.c_str(), &buf) != 0)
 		return -1;
 
 	return (int64) buf.st_size;
@@ -182,7 +165,7 @@ bool DroppedFile::flush()
 
 bool DroppedFile::isEOF()
 {
-	return file == nullptr || tell() >= getSize();
+	return file == nullptr || feof(file) != 0;
 }
 
 int64 DroppedFile::tell()
@@ -190,23 +173,12 @@ int64 DroppedFile::tell()
 	if (file == nullptr)
 		return -1;
 
-#ifdef LOVE_WINDOWS
-	return (int64) _ftelli64(file);
-#else
-	return (int64) ftello(file);
-#endif
+	return (int64) ftell(file);
 }
 
 bool DroppedFile::seek(uint64 pos)
 {
-	if (file == nullptr)
-		return false;
-
-#ifdef LOVE_WINDOWS
-	return _fseeki64(file, (int64) pos, SEEK_SET) == 0;
-#else
-	return fseeko(file, (off_t) pos, SEEK_SET) == 0;
-#endif
+	return file != nullptr && fseek(file, (long) pos, SEEK_SET) == 0;
 }
 
 bool DroppedFile::setBuffer(BufferMode bufmode, int64 size)

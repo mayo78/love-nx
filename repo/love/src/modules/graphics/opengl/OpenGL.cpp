@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2022 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -124,20 +124,6 @@ bool OpenGL::initContext()
 	if (!gladLoadGLLoader(LOVEGetProcAddress))
 		return false;
 
-	initVendor();
-
-	bugs = {};
-
-	if (GLAD_ES_VERSION_3_0 && !GLAD_ES_VERSION_3_1)
-	{
-		const char *device = (const char *) glGetString(GL_RENDERER);
-		if (getVendor() == VENDOR_VIVANTE && strstr(device, "Vivante GC7000UL"))
-			bugs.brokenGLES3 = true;
-	}
-
-	if (bugs.brokenGLES3)
-		GLAD_ES_VERSION_3_0 = false;
-
 	if (GLAD_VERSION_3_2)
 	{
 		GLint profileMask = 0;
@@ -148,6 +134,9 @@ bool OpenGL::initContext()
 		coreProfile = false;
 
 	initOpenGLFunctions();
+	initVendor();
+
+	bugs = {};
 
 #if defined(LOVE_WINDOWS) || defined(LOVE_LINUX)
 	// See the comments in OpenGL.h.
@@ -166,26 +155,16 @@ bool OpenGL::initContext()
 		if (strstr(device, "HD Graphics 4000") || strstr(device, "HD Graphics 2500"))
 			bugs.clientWaitSyncStalls = true;
 	}
-
-	if (getVendor() == VENDOR_INTEL)
-	{
-		const char *device = (const char *) glGetString(GL_RENDERER);
-		if (strstr(device, "HD Graphics 3000") || strstr(device, "HD Graphics 2000")
-			|| !strcmp(device, "Intel(R) HD Graphics") || !strcmp(device, "Intel(R) HD Graphics Family"))
-		{
-			bugs.brokenSRGB = true;
-		}
-	}
 #endif
 
 #ifdef LOVE_WINDOWS
 	if (getVendor() == VENDOR_AMD)
 	{
-		// Radeon drivers switched from "ATI Radeon" to "AMD Radeon" around
+		// Radeon HD drivers switched from "ATI Radeon" to "AMD Radeon" around
 		// the 7000 series. We'll assume this bug doesn't affect those newer
 		// GPUs / drivers.
 		const char *device = (const char *) glGetString(GL_RENDERER);
-		if (strstr(device, "ATI Radeon") || strstr(device, "ATI Mobility Radeon"))
+		if (strstr(device, "ATI Radeon HD ") || strstr(device, "ATI Mobility Radeon HD"))
 			bugs.texStorageBreaksSubImage = true;
 	}
 #endif
@@ -210,9 +189,13 @@ void OpenGL::setupContext()
 	glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &maxvertexattribs);
 
 	state.enabledAttribArrays = (uint32) ((1ull << uint32(maxvertexattribs)) - 1);
-	state.instancedAttribArrays = 0;
 
-	setVertexAttributes(vertex::Attributes(), vertex::BufferBindings());
+	if (GLAD_ES_VERSION_3_0 || isCoreProfile())
+		state.instancedAttribArrays = state.enabledAttribArrays;
+	else
+		state.instancedAttribArrays = 0;
+
+	setVertexAttributes(vertex::Attributes(), vertex::Buffers());
 
 	// Get the current viewport.
 	glGetIntegerv(GL_VIEWPORT, (GLint *) &state.viewport.x);
@@ -236,8 +219,8 @@ void OpenGL::setupContext()
 	setEnableState(ENABLE_SCISSOR_TEST, state.enableState[ENABLE_SCISSOR_TEST]);
 	setEnableState(ENABLE_FACE_CULL, state.enableState[ENABLE_FACE_CULL]);
 
-	if (!bugs.brokenSRGB && (GLAD_VERSION_3_0 || GLAD_ARB_framebuffer_sRGB
-		|| GLAD_EXT_framebuffer_sRGB || GLAD_EXT_sRGB_write_control))
+	if (GLAD_VERSION_3_0 || GLAD_ARB_framebuffer_sRGB || GLAD_EXT_framebuffer_sRGB
+		|| GLAD_EXT_sRGB_write_control)
 	{
 		setEnableState(ENABLE_FRAMEBUFFER_SRGB, state.enableState[ENABLE_FRAMEBUFFER_SRGB]);
 	}
@@ -412,23 +395,15 @@ void OpenGL::initOpenGLFunctions()
 		}
 	}
 
-	if (GLAD_ES_VERSION_2_0 && !GLAD_ES_VERSION_3_0)
+	if (GLAD_ES_VERSION_2_0 && GLAD_OES_texture_3D && !GLAD_ES_VERSION_3_0)
 	{
-		// The Nvidia Tegra 3 driver (used by Ouya) claims to support GL_EXT_texture_array but
-		// segfaults if you actually try to use it. OpenGL ES 2.0 devices should use OES_texture_3D.
-		// GL_EXT_texture_array is for desktops.
-		GLAD_EXT_texture_array = false;
-
-		if (GLAD_OES_texture_3D)
-		{
-			// Function signatures don't match, we'll have to conditionally call it
-			//fp_glTexImage3D = fp_glTexImage3DOES;
-			fp_glTexSubImage3D = fp_glTexSubImage3DOES;
-			fp_glCopyTexSubImage3D = fp_glCopyTexSubImage3DOES;
-			fp_glCompressedTexImage3D = fp_glCompressedTexImage3DOES;
-			fp_glCompressedTexSubImage3D = fp_glCompressedTexSubImage3DOES;
-			fp_glFramebufferTexture3D = fp_glFramebufferTexture3DOES;
-		}
+		// Function signatures don't match, we'll have to conditionally call it
+		//fp_glTexImage3D = fp_glTexImage3DOES;
+		fp_glTexSubImage3D = fp_glTexSubImage3DOES;
+		fp_glCopyTexSubImage3D = fp_glCopyTexSubImage3DOES;
+		fp_glCompressedTexImage3D = fp_glCompressedTexImage3DOES;
+		fp_glCompressedTexSubImage3D = fp_glCompressedTexSubImage3DOES;
+		fp_glFramebufferTexture3D = fp_glFramebufferTexture3DOES;
 	}
 
 	if (!GLAD_VERSION_3_2 && !GLAD_ES_VERSION_3_2 && !GLAD_ARB_draw_elements_base_vertex)
@@ -722,60 +697,49 @@ void OpenGL::deleteBuffer(GLuint buffer)
 	}
 }
 
-void OpenGL::setVertexAttributes(const vertex::Attributes &attributes, const vertex::BufferBindings &buffers)
+void OpenGL::setVertexAttributes(const vertex::Attributes &attributes, const vertex::Buffers &buffers)
 {
-	uint32 enablediff = attributes.enableBits ^ state.enabledAttribArrays;
-	uint32 instanceattribbits = 0;
-	uint32 allbits = attributes.enableBits | state.enabledAttribArrays;
+	uint32 enablediff = attributes.enablebits ^ state.enabledAttribArrays;
+	uint32 instancediff = attributes.instancebits ^ state.instancedAttribArrays;
 
-	uint32 i = 0;
-	while (allbits)
+	for (uint32 i = 0; i < vertex::Attributes::MAX; i++)
 	{
 		uint32 bit = 1u << i;
 
 		if (enablediff & bit)
 		{
-			if (attributes.enableBits & bit)
+			if (attributes.enablebits & bit)
 				glEnableVertexAttribArray(i);
 			else
 				glDisableVertexAttribArray(i);
 		}
 
-		if (attributes.enableBits & bit)
+		if (instancediff & bit)
+			glVertexAttribDivisor(i, (attributes.instancebits & bit) != 0 ? 1 : 0);
+
+		if (attributes.enablebits & bit)
 		{
 			const auto &attrib = attributes.attribs[i];
-			const auto &layout = attributes.bufferLayouts[attrib.bufferIndex];
-			const auto &bufferinfo = buffers.info[attrib.bufferIndex];
-
-			uint32 bufferbit = 1u << attrib.bufferIndex;
-			uint32 divisor = (attributes.instanceBits & bufferbit) != 0 ? 1 : 0;
-			uint32 divisorbit = divisor << i;
-			instanceattribbits |= divisorbit;
-
-			if ((state.instancedAttribArrays & bit) ^ divisorbit)
-				glVertexAttribDivisor(i, divisor);
+			const auto &bufferinfo = buffers.info[attrib.bufferindex];
 
 			GLboolean normalized = GL_FALSE;
 			GLenum gltype = getGLVertexDataType(attrib.type, normalized);
 
-			const void *offsetpointer = reinterpret_cast<void*>(bufferinfo.offset + attrib.offsetFromVertex);
+			const void *offsetpointer = reinterpret_cast<void*>(bufferinfo.offset + attrib.offsetfromvertex);
 
 			bindBuffer(BUFFER_VERTEX, (GLuint) bufferinfo.buffer->getHandle());
-			glVertexAttribPointer(i, attrib.components, gltype, normalized, layout.stride, offsetpointer);
+			glVertexAttribPointer(i, attrib.components, gltype, normalized, attrib.stride, offsetpointer);
 		}
-
-		i++;
-		allbits >>= 1;
 	}
 
-	state.enabledAttribArrays = attributes.enableBits;
-	state.instancedAttribArrays = instanceattribbits | (state.instancedAttribArrays & (~attributes.enableBits));
+	state.enabledAttribArrays = attributes.enablebits;
+	state.instancedAttribArrays = attributes.instancebits;
 
 	// glDisableVertexAttribArray will make the constant value for a vertex
 	// attribute undefined. We rely on the per-vertex color attribute being
 	// white when no per-vertex color is used, so we set it here.
 	// FIXME: Is there a better place to do this?
-	if ((enablediff & ATTRIBFLAG_COLOR) && !(attributes.enableBits & ATTRIBFLAG_COLOR))
+	if ((enablediff & ATTRIBFLAG_COLOR) && !(attributes.enablebits & ATTRIBFLAG_COLOR))
 		glVertexAttrib4f(ATTRIB_COLOR, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
@@ -1006,7 +970,7 @@ void OpenGL::setTextureUnit(int textureunit)
 	state.curTextureUnit = textureunit;
 }
 
-void OpenGL::bindTextureToUnit(TextureType target, GLuint texture, int textureunit, bool restoreprev, bool bindforedit)
+void OpenGL::bindTextureToUnit(TextureType target, GLuint texture, int textureunit, bool restoreprev)
 {
 	if (texture != state.boundTextures[target][textureunit])
 	{
@@ -1022,14 +986,9 @@ void OpenGL::bindTextureToUnit(TextureType target, GLuint texture, int textureun
 		else
 			state.curTextureUnit = textureunit;
 	}
-	else if (bindforedit && !restoreprev && textureunit != state.curTextureUnit)
-	{
-		glActiveTexture(GL_TEXTURE0 + textureunit);
-		state.curTextureUnit = textureunit;
-	}
 }
 
-void OpenGL::bindTextureToUnit(Texture *texture, int textureunit, bool restoreprev, bool bindforedit)
+void OpenGL::bindTextureToUnit(Texture *texture, int textureunit, bool restoreprev)
 {
 	TextureType textype = TEXTURE_2D;
 	GLuint handle = 0;
@@ -1051,7 +1010,7 @@ void OpenGL::bindTextureToUnit(Texture *texture, int textureunit, bool restorepr
 		handle = getDefaultTexture(textype);
 	}
 
-	bindTextureToUnit(textype, handle, textureunit, restoreprev, bindforedit);
+	bindTextureToUnit(textype, handle, textureunit, restoreprev);
 }
 
 void OpenGL::deleteTexture(GLuint texture)
@@ -1575,7 +1534,7 @@ OpenGL::TextureFormat OpenGL::convertPixelFormat(PixelFormat pixelformat, bool r
 		break;
 
 	case PIXELFORMAT_DXT1:
-		f.internalformat = isSRGB ? GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT : GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+		f.internalformat = isSRGB ? GL_COMPRESSED_SRGB_S3TC_DXT1_EXT : GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
 		break;
 	case PIXELFORMAT_DXT3:
 		f.internalformat = isSRGB ? GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT : GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
@@ -1738,8 +1697,6 @@ bool OpenGL::isPixelFormatSupported(PixelFormat pixelformat, bool rendertarget, 
 		else
 			return true;
 	case PIXELFORMAT_sRGBA8:
-		if (gl.bugs.brokenSRGB)
-			return false;
 		if (rendertarget)
 		{
 			if (GLAD_VERSION_1_0)
@@ -1754,11 +1711,15 @@ bool OpenGL::isPixelFormatSupported(PixelFormat pixelformat, bool rendertarget, 
 			return GLAD_ES_VERSION_3_0 || GLAD_EXT_sRGB || GLAD_VERSION_2_1 || GLAD_EXT_texture_sRGB;
 	case PIXELFORMAT_R16:
 	case PIXELFORMAT_RG16:
-		return GLAD_VERSION_3_0
-			|| (GLAD_VERSION_1_1 && GLAD_ARB_texture_rg)
-			|| (GLAD_EXT_texture_norm16 && (GLAD_ES_VERSION_3_0 || GLAD_EXT_texture_rg));
+		if (rendertarget)
+			return false;
+		else
+			return (GLAD_VERSION_1_1 && GLAD_EXT_texture_rg) || (GLAD_EXT_texture_norm16 && (GLAD_ES_VERSION_3_0 || GLAD_EXT_texture_rg));
 	case PIXELFORMAT_RGBA16:
-		return GLAD_VERSION_1_1 || GLAD_EXT_texture_norm16;
+		if (rendertarget)
+			return false;
+		else
+			return GLAD_VERSION_1_1 || GLAD_EXT_texture_norm16;
 	case PIXELFORMAT_R16F:
 	case PIXELFORMAT_RG16F:
 		if (GLAD_VERSION_1_0)

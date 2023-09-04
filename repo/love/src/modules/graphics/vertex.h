@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2022 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -36,9 +36,9 @@ namespace graphics
 
 class Resource;
 
-// Vertex attribute indices used in shaders by LOVE. The values map to GPU
+// Vertex attribute indices used in shaders by LOVE. The values map to OpenGL
 // generic vertex attribute indices.
-enum BuiltinVertexAttribute
+enum VertexAttribID
 {
 	ATTRIB_POS = 0,
 	ATTRIB_TEXCOORD,
@@ -47,7 +47,7 @@ enum BuiltinVertexAttribute
 	ATTRIB_MAX_ENUM
 };
 
-enum BuiltinVertexAttributeFlag
+enum VertexAttribFlags
 {
 	ATTRIBFLAG_POS = 1 << ATTRIB_POS,
 	ATTRIBFLAG_TEXCOORD = 1 << ATTRIB_TEXCOORD,
@@ -147,13 +147,13 @@ enum class CommonFormat
 struct STf_RGBAub
 {
 	float s, t;
-	Color32 color;
+	Color color;
 };
 
 struct STPf_RGBAub
 {
 	float s, t, p;
-	Color32 color;
+	Color color;
 };
 
 struct XYf_STf
@@ -172,28 +172,28 @@ struct XYf_STf_RGBAub
 {
 	float x, y;
 	float s, t;
-	Color32 color;
+	Color color;
 };
 
 struct XYf_STus_RGBAub
 {
 	float  x, y;
 	uint16 s, t;
-	Color32 color;
+	Color  color;
 };
 
 struct XYf_STPf_RGBAub
 {
 	float x, y;
 	float s, t, p;
-	Color32 color;
+	Color color;
 };
 
-struct BufferBindings
+struct Buffers
 {
-	static const uint32 MAX = 32;
+	static const unsigned int MAX = 32;
 
-	uint32 useBits = 0;
+	uint32 usebits = 0;
 
 	struct
 	{
@@ -201,38 +201,33 @@ struct BufferBindings
 		size_t offset;
 	} info[MAX];
 
-	void set(uint32 index, Resource *r, size_t offset)
+	void set(unsigned int index, Resource *r, size_t offset)
 	{
-		useBits |= (1u << index);
+		usebits |= (1u << index);
 		info[index] = {r, offset};
 	}
 
-	void disable(uint32 index) { useBits &= (1u << index); }
-	void clear() { useBits = 0; }
+	void disable(unsigned int index) { usebits &= (1u << index); }
+	void clear() { usebits = 0; }
 };
 
 struct AttributeInfo
 {
-	uint8 bufferIndex;
-	DataType type : 4;
-	uint8 components : 4;
-	uint16 offsetFromVertex;
-};
-
-struct BufferLayout
-{
+	uint8 bufferindex;
+	DataType type : 8;
+	uint16 components;
+	uint16 offsetfromvertex;
 	uint16 stride;
 };
 
 struct Attributes
 {
-	static const uint32 MAX = 32;
+	static const unsigned int MAX = 32;
 
-	uint32 enableBits = 0; // indexed by attribute
-	uint32 instanceBits = 0; // indexed by buffer
+	uint32 enablebits = 0;
+	uint32 instancebits = 0;
 
 	AttributeInfo attribs[MAX];
-	BufferLayout bufferLayouts[BufferBindings::MAX];
 
 	Attributes() {}
 	Attributes(CommonFormat format, uint8 bufferindex)
@@ -240,46 +235,42 @@ struct Attributes
 		setCommonFormat(format, bufferindex);
 	}
 
-	void set(uint32 index, DataType type, uint8 components, uint16 offsetfromvertex, uint8 bufferindex)
+	void set(unsigned int index, DataType type, uint16 components, uint16 offsetfromvertex, uint16 stride, uint8 bufferindex, AttributeStep step = STEP_PER_VERTEX)
 	{
-		enableBits |= (1u << index);
+		uint32 bit = (1u << index);
 
-		attribs[index].bufferIndex = bufferindex;
-		attribs[index].type = type;
-		attribs[index].components = components;
-		attribs[index].offsetFromVertex = offsetfromvertex;
-	}
-
-	void setBufferLayout(uint32 bufferindex, uint16 stride, AttributeStep step = STEP_PER_VERTEX)
-	{
-		uint32 bufferbit = (1u << bufferindex);
+		enablebits |= bit;
 
 		if (step == STEP_PER_INSTANCE)
-			instanceBits |= bufferbit;
+			instancebits |= bit;
 		else
-			instanceBits &= ~bufferbit;
+			instancebits &= ~bit;
 
-		bufferLayouts[bufferindex].stride = stride;
+		attribs[index].bufferindex = bufferindex;
+		attribs[index].type = type;
+		attribs[index].components = components;
+		attribs[index].offsetfromvertex = offsetfromvertex;
+		attribs[index].stride = stride;
 	}
 
-	void disable(uint32 index)
+	void disable(unsigned int index)
 	{
-		enableBits &= ~(1u << index);
+		enablebits &= ~(1u << index);
 	}
 
 	void clear()
 	{
-		enableBits = 0;
+		enablebits = 0;
 	}
 
-	bool isEnabled(uint32 index) const
+	bool isEnabled(unsigned int index) const
 	{
-		return (enableBits & (1u << index)) != 0;
+		return (enablebits & (1u << index)) != 0;
 	}
 
-	AttributeStep getBufferStep(uint32 index) const
+	AttributeStep getStep(unsigned int index) const
 	{
-		return (instanceBits & (1u << index)) != 0 ? STEP_PER_INSTANCE : STEP_PER_VERTEX;
+		return (instancebits & (1u << index)) != 0 ? STEP_PER_INSTANCE : STEP_PER_VERTEX;
 	}
 
 	void setCommonFormat(CommonFormat format, uint8 bufferindex);
@@ -306,8 +297,8 @@ int getIndexCount(TriangleIndexMode mode, int vertexCount);
 void fillIndices(TriangleIndexMode mode, uint16 vertexStart, uint16 vertexCount, uint16 *indices);
 void fillIndices(TriangleIndexMode mode, uint32 vertexStart, uint32 vertexCount, uint32 *indices);
 
-bool getConstant(const char *in, BuiltinVertexAttribute &out);
-bool getConstant(BuiltinVertexAttribute in, const char *&out);
+bool getConstant(const char *in, VertexAttribID &out);
+bool getConstant(VertexAttribID in, const char *&out);
 
 bool getConstant(const char *in, IndexDataType &out);
 bool getConstant(IndexDataType in, const char *&out);

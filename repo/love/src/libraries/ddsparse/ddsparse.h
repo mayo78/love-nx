@@ -1,7 +1,7 @@
 /**
  * Simple DDS data parser for compressed 2D textures.
  *
- * Copyright (c) 2013-2019 Alex Szpakowski
+ * Copyright (c) 2013-2017 Alex Szpakowski
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -28,18 +28,37 @@
 
 #include <vector>
 
-#include "ddsinfo.h"
-
 namespace dds
 {
+
+// Supported DDS formats.
+// Formats with an 's' suffix have signed data.
+enum Format
+{
+	FORMAT_DXT1,
+	FORMAT_DXT3,
+	FORMAT_DXT5,
+	FORMAT_BC4,
+	FORMAT_BC4s,
+	FORMAT_BC5,
+	FORMAT_BC5s,
+	FORMAT_BC6H,
+	FORMAT_BC6Hs,
+	FORMAT_BC7,
+	FORMAT_BC7srgb, // sRGB color space.
+	FORMAT_UNKNOWN
+};
 
 // Represents a single mipmap level of a texture.
 struct Image
 {
-	int width = 0;
-	int height = 0;
-	size_t dataSize = 0;
-	const uint8_t *data = nullptr;
+	int width;
+	int height;
+	size_t dataSize;
+	const uint8_t *data;
+
+	Image() : width(0), height(0), dataSize(0), data(0)
+	{}
 };
 
 /**
@@ -59,8 +78,6 @@ bool isDDS(const void *data, size_t dataSize);
  * @param dataSize The size in bytes of the data.
  **/
 bool isCompressedDDS(const void *data, size_t dataSize);
-
-dxinfo::DXGIFormat getDDSPixelFormat(const void *data, size_t dataSize);
 
 class Parser
 {
@@ -84,7 +101,7 @@ public:
 	/**
 	 * Gets the format of this texture.
 	 **/
-	dxinfo::DXGIFormat getFormat() const;
+	Format getFormat() const;
 
 	/**
 	 * Gets the data of this texture at a mipmap level. Mipmap level 0
@@ -104,12 +121,12 @@ public:
 
 private:
 
-	size_t parseImageSize(dxinfo::DXGIFormat fmt, int width, int height) const;
-	bool parseTexData(const uint8_t *data, size_t dataSize, dxinfo::DXGIFormat fmt, int w, int h, int nb_mips);
+	size_t parseImageSize(Format fmt, int width, int height) const;
+	bool parseTexData(const uint8_t *data, size_t dataSize, Format fmt, int w, int h, int mips);
 	bool parseData(const void *data, size_t dataSize);
 
 	std::vector<Image> texData;
-	dxinfo::DXGIFormat format;
+	Format format;
 
 }; // Parser
 

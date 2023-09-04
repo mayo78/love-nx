@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2022 LOVE Development Team
+ * Copyright (c) 2006-2019 LOVE Development Team
  *
  * This software is provided 'as-is', without any express or implied
  * warranty.  In no event will the authors be held liable for any damages
@@ -39,8 +39,8 @@ Buffer::Buffer(size_t size, const void *data, BufferType type, vertex::Usage usa
 	: love::graphics::Buffer(size, type, usage, mapflags)
 	, vbo(0)
 	, memory_map(nullptr)
-	, modified_start(std::numeric_limits<size_t>::max())
-	, modified_end(0)
+	, modified_offset(0)
+	, modified_size(0)
 {
 	target = OpenGL::getGLBufferType(type);
 
@@ -78,8 +78,8 @@ void *Buffer::map()
 
 	is_mapped = true;
 
-	modified_start = std::numeric_limits<size_t>::max();
-	modified_end = 0;
+	modified_offset = 0;
+	modified_size = 0;
 
 	return memory_map;
 }
@@ -119,25 +119,21 @@ void Buffer::unmap()
 
 	if ((map_flags & MAP_EXPLICIT_RANGE_MODIFY) != 0)
 	{
-		if (modified_end >= modified_start)
-		{
-			modified_start = std::min(modified_start, getSize() - 1);
-			modified_end = std::min(modified_end, getSize() - 1);
-		}
+		modified_offset = std::min(modified_offset, getSize() - 1);
+		modified_size = std::min(modified_size, getSize() - modified_offset);
 	}
 	else
 	{
-		modified_start = 0;
-		modified_end = getSize() - 1;
+		modified_offset = 0;
+		modified_size = getSize();
 	}
 
-	if (modified_end >= modified_start)
+	if (modified_size > 0)
 	{
-		size_t modified_size = (modified_end - modified_start) + 1;
 		switch (getUsage())
 		{
 		case vertex::USAGE_STATIC:
-			unmapStatic(modified_start, modified_size);
+			unmapStatic(modified_offset, modified_size);
 			break;
 		case vertex::USAGE_STREAM:
 			unmapStream();
@@ -149,13 +145,13 @@ void Buffer::unmap()
 			if (modified_size >= getSize() / 3)
 				unmapStream();
 			else
-				unmapStatic(modified_start, modified_size);
+				unmapStatic(modified_offset, modified_size);
 			break;
 		}
 	}
 
-	modified_start = std::numeric_limits<size_t>::max();
-	modified_end = 0;
+	modified_offset = 0;
+	modified_size = 0;
 
 	is_mapped = false;
 }
@@ -168,8 +164,12 @@ void Buffer::setMappedRangeModified(size_t offset, size_t modifiedsize)
 	// We're being conservative right now by internally marking the whole range
 	// from the start of section a to the end of section b as modified if both
 	// a and b are marked as modified.
-	modified_start = std::min(modified_start, offset);
-	modified_end = std::max(modified_end, offset + modifiedsize - 1);
+
+	size_t old_range_end = modified_offset + modified_size;
+	modified_offset = std::min(modified_offset, offset);
+
+	size_t new_range_end = std::max(offset + modifiedsize, old_range_end);
+	modified_size = new_range_end - modified_offset;
 }
 
 void Buffer::fill(size_t offset, size_t size, const void *data)
