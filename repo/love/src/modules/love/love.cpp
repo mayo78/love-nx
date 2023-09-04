@@ -433,10 +433,11 @@ static int getNickname(lua_State *L)
 	return 1;
 }
 //if someone can do this for me please do so :)
-static int getFileFromUrl(lua_State *L) {
-	lua_pushstring(L, "idk");
-	return 1;
-}
+//nvm originally i was trying to get the vrersion file from the github website but i realized if i turned off https protection on my own site and jsut hosted the file there then i could just get the file contents easily with socket.https sooooooooooooooooooooo yeah
+//static int getFileFromUrl(lua_State *L) {
+//	lua_pushstring(L, "idk");
+//	return 1;
+//}
 
 
 int luaopen_love(lua_State *L)
@@ -487,8 +488,8 @@ int luaopen_love(lua_State *L)
 	lua_pushcfunction(L, getNickname);
 	lua_setfield(L, -2, "getNickname");
 	
-	lua_pushcfunction(L, getFileFromUrl);
-	lua_setfield(L, -2, "getFileFromUrl");
+	//lua_pushcfunction(L, getFileFromUrl);
+	//lua_setfield(L, -2, "getFileFromUrl");
 	//#endif
 
 	lua_newtable(L);
